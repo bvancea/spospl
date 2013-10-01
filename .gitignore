@@ -1,0 +1,9 @@
+#Eclipse specific settings
+Debug
+Release
+.project
+.cproject
+
+#Objects created during build
+*.o
+*.d
