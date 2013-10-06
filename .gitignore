@@ -1,8 +1,11 @@
 #Eclipse specific settings
 Debug
 Release
-.project
+.metadata
 .cproject
+.project
+.settings
+.classpath
 
 #Objects created during build
 *.o
