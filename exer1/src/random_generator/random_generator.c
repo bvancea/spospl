@@ -2,8 +2,9 @@
 #include <pthread.h>
 #include <time.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-void *generateNumbers(void* n);
+void generateNumbers(void* n);
 
 int main(int argc, char **argv) {
 
@@ -11,18 +12,18 @@ int main(int argc, char **argv) {
 	int n;
 
 	if (argc < 2) {
-		t = 2;
-		n = 10000000;
+		t = (int) sysconf( _SC_NPROCESSORS_ONLN );
+		n = (int) 100000;
 	} else {
-		t = (int) argv[1];
-		n = (int) argv[2];
+		t = atoi(argv[1]);
+		n = atoi(argv[2]);
 	}
 
 	pthread_t* threads = malloc(t * sizeof(pthread_t));
 	int i;
 	printf("All threads starting..\n");
 	for (i = 0; i < t; i++) {
-		pthread_create(&threads[i], NULL, generateNumbers, &n);
+		pthread_create(&threads[i], NULL, (void*)generateNumbers, &n);
 	}
 
 	for (i = 0; i < t; i++) {
@@ -33,7 +34,7 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-void *generateNumbers(void* n) {
+void generateNumbers(void* n) {
 	clock_t begin, end;
 	double time_spent;
 
