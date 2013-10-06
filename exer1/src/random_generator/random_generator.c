@@ -1,55 +1,64 @@
 #include <stdio.h>
-#include <pthread.h>
-#include <time.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
-
-void generateNumbers(void* n);
+#include <pthread.h>
+#include "random_generator.h"
 
 int main(int argc, char **argv) {
 
-	int t;
-	int n;
+	int t,n;
 
 	if (argc < 2) {
 		t = (int) sysconf( _SC_NPROCESSORS_ONLN );
-		n = (int) 100000;
+		n = (int) DEFAULT_N;
 	} else {
 		t = atoi(argv[1]);
 		n = atoi(argv[2]);
 	}
 
 	pthread_t* threads = malloc(t * sizeof(pthread_t));
+	createWorkerThreads(threads, t,n);
+
+	return 0;
+}
+
+void createWorkerThreads(pthread_t* threads, int t, int n) {
+	clock_t begin = clock();
+
 	int i;
 	printf("All threads starting..\n");
+	arguments* arg = (arguments*) malloc(t * sizeof(arguments));
+
 	for (i = 0; i < t; i++) {
-		pthread_create(&threads[i], NULL, (void*)generateNumbers, &n);
+		arg[i].i = i;
+		arg[i].n = n;
+		pthread_create(&threads[i], NULL, (void*)generateNumbers, &arg[i]);
 	}
 
 	for (i = 0; i < t; i++) {
 		pthread_join(threads[i], NULL);
 	}
-	printf("All threads finished\n");
 
-	return 0;
+	clock_t end = clock();
+	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+	printf("All threads finished in %.2f\n", time_spent);
+
+	free(arg);
 }
 
-void generateNumbers(void* n) {
-	clock_t begin, end;
-	double time_spent;
+void generateNumbers(void* args) {
+	clock_t begin = clock();
 
-	begin = clock();
-
+	arguments* a = (arguments *) args;
 	int i;
-	int* nr = (int *) n;
-	printf("Thread started %d\n", *nr);
-	for (i = 0; i < *nr; i++) {
+	printf("Thread %d started.\n", a->i);
+	for (i = 0; i < a->n; i++) {
 		srand(time(NULL));
 	}
 
-	end = clock();
-
-	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("Thread finished in %f\n",time_spent);
+	clock_t end = clock();
+	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+	printf("Thread %d finished in %.2f\n",a->i, time_spent);
 }
 
