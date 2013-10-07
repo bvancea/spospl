@@ -1,8 +1,10 @@
 E1 = random_generator
-
+E3 = numa_allocation
 
 all:
-	make -f $E1/makefile;
+	cd $(E1); make;
+	cd $(E3); make;
 
 clean:
-	rm -f $E1/*.o
+	cd $(E1); make clean;
+	cd $(E3); make clean;
