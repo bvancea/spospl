@@ -8,7 +8,6 @@
 int main(int argc, char **argv) {
 
 	int t,n;
-
 	if (argc < 2) {
 		t = (int) sysconf( _SC_NPROCESSORS_ONLN );
 		n = (int) DEFAULT_N;
@@ -16,7 +15,6 @@ int main(int argc, char **argv) {
 		t = atoi(argv[1]);
 		n = atoi(argv[2]);
 	}
-
 	pthread_t* threads = malloc(t * sizeof(pthread_t));
 	createWorkerThreads(threads, t,n);
 
@@ -25,7 +23,6 @@ int main(int argc, char **argv) {
 
 void createWorkerThreads(pthread_t* threads, int t, int n) {
 	clock_t begin = clock();
-
 	int i;
 	printf("All threads starting..\n");
 	arguments* arg = (arguments*) malloc(t * sizeof(arguments));

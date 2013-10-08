@@ -1,9 +1,13 @@
 /*
  * numa_allocation.c
  */
+#define _GNU_SOURCE
 #include <numa.h>
 #include <stdio.h>
+#include <sched.h>
 #include "numa_allocation.h"
+
+
 
 int main(int argc, char **argv) {
 
@@ -47,13 +51,11 @@ int node_size_in_GB(int node) {
 }
 
 int* cpus_from_bitmask(struct bitmask *bm) {
-
 	int* cpu_ids = (int* ) malloc(bm->size * sizeof(int));
 	int i, index = 0;
 	for(i = 0; i< bm->size; ++i) {
 		if (numa_bitmask_isbitset(bm, i)) {
 			cpu_ids[index++] = i;
-
 		}
 	}
 	for(i = 0; i < index; i++) {
@@ -73,11 +75,12 @@ int current_numa_node() {
 void bind_to_numa_node(int node) {
 	nodemask_t node_mask;
 	nodemask_zero(&node_mask);
-	//nodemask_set(&node_mask);
+	/*nodemask_set(&node_mask, node);
+	numa_bind(&node_mask);*/
 }
 
-/*void bind_to_cpu(int cpu) {
-	_
-}*/
+void bind_to_cpu(int cpu) {
+
+}
 
 

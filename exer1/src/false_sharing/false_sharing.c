@@ -3,15 +3,18 @@
 #include <stdio.h> 
 #include <pthread.h> 
 
+
 long long int tmsBegin1,tmsEnd1,tmsBegin2,tmsEnd2,tmsBegin3,tmsEnd3;
 
 int array[100];
+void heavy_loop(void *param);
 
-void *heavy_loop(void *param) { 
+void heavy_loop(void *param) {
   int   index = *((int*)param);
   int   i;
-  for (i = 0; i < 100000000; i++)
+  for (i = 0; i < 10000; i++) {
     array[index]+=3;
+  }
 } 
 
 int main(int argc, char *argv[]) { 
@@ -30,15 +33,15 @@ int main(int argc, char *argv[]) {
   tmsEnd3 = clock();
 
   tmsBegin1 = clock();
-  pthread_create(&thread_1, NULL, heavy_loop, (void*)&first_elem);
-  pthread_create(&thread_2, NULL, heavy_loop, (void*)&bad_elem);
+  pthread_create(&thread_1, NULL,  (void*)heavy_loop, (void*)&first_elem);
+  pthread_create(&thread_2, NULL,  (void*)heavy_loop, (void*)&bad_elem);
   pthread_join(thread_1, NULL);
   pthread_join(thread_2, NULL);
   tmsEnd1 = clock(); 
 
   tmsBegin2 = clock();
-  pthread_create(&thread_1, NULL, heavy_loop, (void*)&first_elem);
-  pthread_create(&thread_2, NULL, heavy_loop, (void*)&good_elem);
+  pthread_create(&thread_1, NULL,  (void*)heavy_loop, (void*)&first_elem);
+  pthread_create(&thread_2, NULL,  (void*)heavy_loop, (void*)&good_elem);
   pthread_join(thread_1, NULL);
   pthread_join(thread_2, NULL);
   tmsEnd2 = clock();
