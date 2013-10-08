@@ -7,6 +7,15 @@ Release
 .settings
 .classpath
 
+#Idea specific files
+*.eml
+*.iml
+
 #Objects created during build
 *.o
 *.d
+
+#Binaries
+false_sharing
+numa_allocation
+random_generator
