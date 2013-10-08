@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -O2 -Wall -Werror
-BINARY = random_generator
-OBJECTS = random_generator.o
+BINARY = false_sharing
+OBJECTS = false_sharing.o
 
 all: $(OBJECTS)
 	$(CC) $(CFLAGS) $(OBJECTS) -o $(BINARY) -ldl -pthread
