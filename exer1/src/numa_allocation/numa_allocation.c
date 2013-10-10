@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
 	generate_random_array(array, ARRAY_SIZE);
 	clear_cache();
 	memory_read_latency(array, ARRAY_SIZE, ARRAY_SIZE);
+
 	return 0;
 }
 

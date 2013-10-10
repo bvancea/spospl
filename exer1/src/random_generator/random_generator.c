@@ -8,7 +8,7 @@
 int main(int argc, char **argv) {
 
 	int t,n;
-	if (argc < 2) {
+	if (argc < 3) {
 		t = (int) sysconf( _SC_NPROCESSORS_ONLN );
 		n = (int) DEFAULT_N;
 	} else {
