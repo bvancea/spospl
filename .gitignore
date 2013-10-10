@@ -16,6 +16,3 @@ Release
 *.d
 
 #Binaries
-false_sharing
-numa_allocation
-random_generator
