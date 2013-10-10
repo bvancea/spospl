@@ -3,11 +3,15 @@ E2 = false_sharing
 E3 = numa_allocation
 
 all:
-	cd $(E1); make;
-	cd $(E2); make;
-	cd $(E3); make;
+	@echo "Compiling modules for Exercise 1"
+	@cd $(E1); make;
+	@cd $(E2); make;
+	@cd $(E3); make;
+	@echo "Compilation done."
 
 clean:
-	cd $(E1); make clean;
-	cd $(E2); make clean;
-	cd $(E3); make clean;
+	@echo "Cleaning modules for Exercise 1"
+	@cd $(E1); make clean;
+	@cd $(E2); make clean;
+	@cd $(E3); make clean;
+	@echo "Cleaning done."
