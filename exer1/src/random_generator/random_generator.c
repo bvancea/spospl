@@ -9,12 +9,14 @@ int main(int argc, char **argv) {
 
 	int t,n;
 	if (argc < 3) {
+		printf("The first parameter is the number of threads, the second is the number of iterations.\n");
 		t = (int) sysconf( _SC_NPROCESSORS_ONLN );
 		n = (int) DEFAULT_N;
 	} else {
 		t = atoi(argv[1]);
 		n = atoi(argv[2]);
 	}
+	printf("Running with parameters: %d (number of CPU's on the system) and %d iterations.\n", t, n);
 	pthread_t* threads = malloc(t * sizeof(pthread_t));
 	createWorkerThreads(threads, t,n);
 
@@ -39,7 +41,7 @@ void createWorkerThreads(pthread_t* threads, int t, int n) {
 
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("All threads finished in %.2f\n", time_spent);
+	printf("All threads finished in %.2f s\n", time_spent);
 
 	free(arg);
 }
@@ -56,6 +58,6 @@ void generateNumbers(void* args) {
 
 	clock_t end = clock();
 	double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	printf("Thread %d finished in %.2f\n",a->i, time_spent);
+	printf("Thread %d finished in %.2f s\n",a->i, time_spent);
 }
 
