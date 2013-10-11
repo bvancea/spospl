@@ -20,7 +20,7 @@ void read_parameters(int argc, char **argv, int* node, int* cpu) {
 	*cpu = atoi(argv[2]);
 	fprintf(stdout, "Allocating memory on node: %d\nExecuting program on CPU: %d.", *node, *cpu);
 	if (numa_node_of_cpu(*cpu) == *node) {
-		fprintf(stdout, "Based on the topology, testing local memory access\n");
+		fprintf(stdout, "Based on the topology, testing local memory access.\n");
 	} else {
 		fprintf(stdout, "Based on the topology, testing remote memory access.\n");
 	}
