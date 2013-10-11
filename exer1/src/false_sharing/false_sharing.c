@@ -46,6 +46,10 @@ void bind_to_cpu(int cpu) {
 	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &mask);
 }
 
+/**
+ *	Binds the current thread to a specific CPU and then performs a loop increment
+ *	on an array value.
+ */
 void heavy_loop(void *args) {
 	arguments* a = (arguments *) args;
 	bind_to_cpu(a->cpu);
@@ -83,8 +87,6 @@ double measure_memory_access() {
 
 	clock_t end = clock();
 
-	free(threads);
-	free(args);
 	return (double) (end - start) / CLOCKS_PER_SEC;
 }
 
