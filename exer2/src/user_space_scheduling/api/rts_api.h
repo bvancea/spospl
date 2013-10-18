@@ -11,7 +11,9 @@
 /**
  * Identifies a single execution context.
  */
-typedef struct context context_t;
+typedef struct context {
+	void* context;
+}context_t;
 
 /**
  * Run the function pointed by fct_ptr with the given arguments in a different execution context.
@@ -20,12 +22,13 @@ typedef struct context context_t;
  *
  * execution_context	: 	a pointer to an execution context used for this task
  * fct_ptr				:	a pointer to the function executed for this task
- * arguments			: 	an array of arguments which should be passed to the function
- * argc					:	the number of arguments in the array
+ * arguments			: 	a void pointer to the arguments of the function.
+ * 							This could be a pointer to a structure or a single variable, similar to the pthread library.
  *
- * returns				:	a void pointer containing the address of the result
+ * returns				:	0 if the call is successful, otherwise an error number
  */
-void* span_worker(context_t* execution_context, void* fct_ptr, void* arguments, int argc);
+int spawn_worker(context_t* execution_context, void* fct_ptr, void* arguments);
+
 
 /**
  * Barrier method, used to make the current thread wait for the completion of the execution context
@@ -33,8 +36,11 @@ void* span_worker(context_t* execution_context, void* fct_ptr, void* arguments, 
  *
  * Arguments
  *
- * execution_context	: 	a pointer to an execution context used for this task *
+ * execution_context	:  a pointer to an execution context used for this task
+ * return_val			:  a pointer to an address where the result returned by the task is.
+ *
+ * returns				:  0 if the call is successful, otherwise an error number
  */
-void* sync_worker(context_t* execution_context);
+int sync_worker(context_t* execution_context, void *return_val);
 
 #endif /* RTS_API_H_ */
