@@ -8,6 +8,15 @@
 #ifndef RTS_API_H_
 #define RTS_API_H_
 
+#define STACK_SIZE	4 * 1028
+#define ALLOCATE_STACK_UC(context)	ALLOCATE_STACK(context.uc_stack)
+#define ALLOCATE_STACK(stack) 	stack.ss_sp = malloc(STACK_SIZE); \
+								stack.ss_size = STACK_SIZE; \
+								stack.ss_flags = 0
+#define FREE_STACK_UC(context)  FREE_STACK(context.uc_stack)
+#define FREE_STACK(stack)		free(stack.ss_sp)
+#define LINK(child, parent)		child.uc_link = &parent;
+
 /**
  * Identifies a single execution context.
  */
