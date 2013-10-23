@@ -18,6 +18,7 @@ ucontext:
 		
 all:
 	make setjmp;
+	make ucontext;
 
 clean:
 	@rm -f $(SETJMP_BINARY) $(UCONTEXT_BINARY)%.o
