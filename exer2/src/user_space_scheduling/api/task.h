@@ -5,25 +5,37 @@
  *      Author: bogdan
  */
 
-#ifndef RTS_API_H_
-#define RTS_API_H_
+#ifndef TASK_H_
+#define TASK_H_
+#include <ucontext.h>
 
-#define STACK_SIZE	4 * 1028
-#define ALLOCATE_STACK_UC(context)	ALLOCATE_STACK(context.uc_stack)
-#define ALLOCATE_STACK(stack) 	stack.ss_sp = malloc(STACK_SIZE); \
-								stack.ss_size = STACK_SIZE; \
-								stack.ss_flags = 0
-#define FREE_STACK_UC(context)  FREE_STACK(context.uc_stack)
-#define FREE_STACK(stack)		free(stack.ss_sp)
-#define LINK(child, parent)		child.uc_link = &parent;
+typedef void (*function_t)(void *);
+
+typedef enum sched_action { ADD_TASK, YIELD, RETURN_TASK } sched_action_t;
+typedef enum status { STARTED, COMPLETED } status_t;
+
+typedef struct context {
+	int id;
+	ucontext_t* context;
+
+	function_t function;
+	void* result;
+	void* arguments;
+
+	status_t status;
+} task_t;
 
 /**
- * Identifies a single execution context.
+ * Initializes the task API.
+ *
+ * Allocates a stack for the scheduler.
  */
-typedef struct context {
-	void* context;
-}context_t;
+void task_init();
 
+/**
+ * Perform clean-up.
+ */
+void task_deinit();
 /**
  * Run the function pointed by fct_ptr with the given arguments in a different execution context.
  *
@@ -36,7 +48,7 @@ typedef struct context {
  *
  * returns				:	0 if the call is successful, otherwise an error number
  */
-int spawn_worker(context_t* execution_context, void* fct_ptr, void* arguments);
+task_t* task_spawn(void* fct_ptr, void* arguments, void *return_val);
 
 
 /**
@@ -50,6 +62,23 @@ int spawn_worker(context_t* execution_context, void* fct_ptr, void* arguments);
  *
  * returns				:  0 if the call is successful, otherwise an error number
  */
-int sync_worker(context_t* execution_context, void *return_val);
+int task_sync(task_t** execution_context, int count);
+
+/**
+ * Release control to the scheduler which will mark the current task a finished.
+ *
+ * The task cannot be run anymore.
+ */
+int task_return();
+
+#define RETURN(value, type) task_t* current_task = task_current();			\
+							*((type*)current_task->result) = *value; 		\
+							task_return()
+
+/**
+ * Returns a pointer to the currently running task.
+ */
+task_t* task_current();
+
 
 #endif /* RTS_API_H_ */
