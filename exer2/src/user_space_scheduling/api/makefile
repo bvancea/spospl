@@ -1,12 +1,16 @@
-CC = @gcc
-CFLAGS = -c -g -O2 -Wall -Werror
-SOURCES = fibo.c
-OBJECTS = fibo.o
-LIBRARIES = 
+CC = gcc
+CFLAGS = -g -O2 -Wall -Werror -DNDEBUG
+SOURCES = fibo.c lists.c task.c
+OBJECTS = fibo.o lists.o
+BINARY = fibo
+LIBRARIES = -lm
 
-all: 
-	$(CC) $(CFLAGS) $(SOURCES)
-
+all:
+	$(CC) $(CFLAGS) $(SOURCES) -o $(BINARY) $(LIBRARIES)
+	@echo "Compilation succesfull. The binary generated is '$(BINARY)'.";
+%.o : %.c
+	$(CC) $(CFLAGS) -c $<
+	
 clean:
-	@rm -f $(BINARY) $(OBJECTS)
+	@rm -f $(BINARY) $(OBJECTS) %.o
 	
