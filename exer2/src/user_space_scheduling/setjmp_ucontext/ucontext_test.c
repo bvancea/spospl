@@ -7,15 +7,14 @@
 #include <stdio.h>
 #include <ucontext.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/time.h>
 #include "utils.h"
 #define EXPERIMENTS 10
 
 #define STACK_SIZE	4 * 1028
 #define ALLOCATE_STACK_UC(context)	ALLOCATE_STACK(context.uc_stack)
 #define ALLOCATE_STACK(stack) 	stack.ss_sp = malloc(STACK_SIZE); \
-								stack.ss_size = STACK_SIZE; \
-								stack.ss_flags = 0
+								stack.ss_size = STACK_SIZE
 #define FREE_STACK_UC(context)  FREE_STACK(context.uc_stack)
 #define FREE_STACK(stack)		free(stack.ss_sp)
 #define LINK(child, parent)		child.uc_link = &parent;
@@ -24,18 +23,31 @@
 ucontext_t main_t, first_t, second_t;
 
 volatile int counter = 0;
+int switches;
+int experiments;
 
 int main(int argc, char **argv) {
-	double* experiment_results = (double*) calloc(EXPERIMENTS,sizeof(double));
-	int i;
-	for (i = 0; i < EXPERIMENTS; i++) {
-		double running_time =  switch_time_ucontext(SWITCHES);
-		printf("Total time for %d switches: %f s\n", SWITCHES, running_time);
-		printf("Time per switch %f ns\n", TO_NS(running_time)/SWITCHES);
-		experiment_results[i] = TO_NS(running_time)/SWITCHES;
+	counter = 0;
+	printf("Usage: ./ucontext_test nr_switches nr_experiments\n");
+	if (argc < 3) {
+		switches = SWITCHES;
+		experiments = EXPERIMENTS;
+	} else {
+		switches = atoi(argv[1]);
+		experiments = atoi(argv[2]);
 	}
 
-	stats_t stats = compute_stats(experiment_results, EXPERIMENTS);
+	double* experiment_results = (double*) calloc(experiments,sizeof(double));
+
+	int i;
+	for (i = 0; i < experiments; i++) {
+		double running_time =  switch_time_ucontext();
+		printf("Total time for %d switches: %f s\n", switches, running_time);
+		printf("Time per switch %f ns\n",  TO_NS(running_time/switches));
+		experiment_results[i] =  TO_NS(running_time/switches);
+	}
+
+	stats_t stats = compute_stats(experiment_results, experiments);
 	printf("Mean %f ns\n", stats.mean);
 	printf("Standard deviation: %f ns\n", stats.standard_deviation);
 
@@ -43,20 +55,27 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-double switch_time_ucontext(int iterations) {
+double switch_time_ucontext() {
 	counter = 0;
 	initialize_tasks();
-	printf("Starting in main\n");
-	clock_t start = clock();
-	getcontext(&main_t);
-	if (counter < SWITCHES) {
-		printf("Jumping to first\n");
+
+	struct timeval start,end;
+	gettimeofday(&start, 0);
+	if (counter < switches) {
 		first();
 	}
-	clock_t end = clock();
+	gettimeofday(&end, 0);
 	deinitialize_tasks();
-	double running_time =  ((double) end - start) / CLOCKS_PER_SEC;
-	return running_time;
+	double running_time = timeval_diff(start, end);
+
+	//now let's measure the running of only the memory accesses
+	gettimeofday(&start, 0);
+	counter = 0;
+	while (++counter < switches);
+	gettimeofday(&end, 0);
+	double memory_access = 0;
+
+	return running_time - memory_access;
 }
 
 int first() {
@@ -66,8 +85,9 @@ int first() {
 	}
 	getcontext(&first_t);
 
-	while (++counter < SWITCHES) {
-		swapcontext(&first_t, &second_t);
+	if (++counter < switches) {
+		//swapcontext(&first_t, &second_t);
+		setcontext(&second_t);			//setcontext is faster since it doesn't save the current context
 	}
 	return 0;
 }
@@ -75,9 +95,11 @@ int first() {
 int second() {
 	getcontext(&second_t);
 
-	while (++counter > SWITCHES) {
-		swapcontext(&second_t, &first_t);
+	if (++counter < switches) {
+		//swapcontext(&second_t, &first_t);
+		setcontext(&first_t);
 	}
+
 	return 0;
 }
 
@@ -93,6 +115,7 @@ void initialize_tasks() {
 	ALLOCATE_STACK_UC(second_t);
 	LINK(second_t, main_t);
 	makecontext(&second_t, (void (*)(void)) second, 1, 0);
+	printf("Initialized tasks\n");
 }
 
 void deinitialize_tasks() {

@@ -23,3 +23,8 @@ stats_t compute_stats(double* values, int size) {
 	stats.standard_deviation = sqrt(variance/size);
 	return stats;
 }
+
+double timeval_diff(struct timeval begin, struct timeval end) {
+	double elapsed = (end.tv_sec - begin.tv_sec) + ((end.tv_usec - begin.tv_usec)/1000000.0);
+	return elapsed;
+}

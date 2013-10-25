@@ -33,17 +33,19 @@ typedef struct stats {
 
 stats_t compute_stats(double* values, int size);
 
+double timeval_diff(struct timeval begin, struct timeval end);
+
 /**
  * Function declarations
  */
-double switch_time_setjmp(int iterations);
+double switch_time_setjmp();
 int first();
 int second();
 
 /**
- * U-context
+ * U context
  */
-double switch_time_ucontext(int iterations);
+double switch_time_ucontext();
 void initialize_tasks();
 void deinitialize_tasks();
 
