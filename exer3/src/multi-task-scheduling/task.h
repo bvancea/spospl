@@ -8,6 +8,9 @@
 #ifndef TASK_H_
 #define TASK_H_
 #include <ucontext.h>
+#include <pthread.h>
+#include "lists.h"
+
 
 typedef void (*function_t)(void *);
 
@@ -18,13 +21,37 @@ typedef enum status { STARTED, COMPLETED } status_t;
 typedef struct context {
 	int id;
 	ucontext_t* context;
+	status_t status;
 
 	function_t function;
 	void* result;
 	void* arguments;
+	
+	int children;
+	struct context* parent;
 
-	status_t status;
+	pthread_mutex_t lock;
 } task_t;
+
+
+typedef struct scheduler {
+	ucontext_t* context;
+	pthread_mutex_t lock;
+	
+	int top;
+
+	task_t* new_task;
+	sched_action_t action;
+
+	//TODO cleanup
+	task_t* current_task;
+	/* Tasks ready to execute */
+	volatile list_t ready;
+	/* Tasks waiting on something, blocked tasks.*/
+	list_t waiting;
+
+	pthread_t thread;
+} scheduler_t;
 
 /**
  * Initializes the task API.
@@ -36,7 +63,7 @@ void task_init(int nr_threads);
 /**
  * Perform clean-up.
  */
-void task_deinit();
+void task_deinit(void*);
 /**
  * Run the function pointed by fct_ptr with the given arguments in a different execution context.
  *
@@ -81,5 +108,21 @@ int task_return();
  */
 task_t* task_current();
 
+void task_inc_children_count(task_t* task);
+void task_dec_children_count(task_t* task);
+
+void* thread_init(void* arg);
+
+void worker_init(int workers);
+void* worker_loop();
+void sched_init();
+void* sched_execute_action(void *arguments);
+void sched_add_task(task_t* new_task);
+void sched_yield_current();
+void sched_invoke();
+void sched_wrapper_function(void* c);
+scheduler_t* sched_get();
+
+void sched_print_list(list_t list);
 
 #endif /* RTS_API_H_ */
