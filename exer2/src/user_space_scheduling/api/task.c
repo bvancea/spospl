@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "task.h"
 #include "lists.h"
 #include "dbg.h"
@@ -33,6 +34,12 @@
 #define LINK(child, parent)		child.uc_link = &parent;
 
 #define QUEUE_SIZE 100
+
+pthread_t workers;
+typedef struct worker {
+	pthread_t thread;
+
+} worker_t;
 
 typedef struct scheduler {
 	ucontext_t* context;

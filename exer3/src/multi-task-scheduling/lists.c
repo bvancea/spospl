@@ -7,8 +7,8 @@
  *      Author: bogdan
  */
 #include "lists.h"
+#include "dbg.h"
 #include <stdlib.h>
-
 
 node_t safe_list_head(list_t list) {
 	pthread_mutex_lock(&list->lock);
@@ -56,7 +56,6 @@ void* list_pop_head(list_t list) {
 	void* returned;
 	if (list->head == NULL) {
 		returned = NULL;
-
 	} else {
 		returned = list->head->content;
 		node_t deleted = list->head;
@@ -66,7 +65,10 @@ void* list_pop_head(list_t list) {
 		} else {
 			list->tail = NULL;
 		}
-		free(deleted);
+		if (deleted == NULL) {
+			log_err("Deleted is NULL");
+		}
+		//free(deleted);
 	}
 	pthread_mutex_unlock(&list->lock);
 	return returned;
@@ -76,7 +78,7 @@ list_t list_push_back(list_t list, void* payload) {
 
 	pthread_mutex_lock(&list->lock);
 	
-	node_t node = (node_t) malloc(sizeof(node_t));
+	node_t node = (node_t) malloc(sizeof(*node));
 	node->content = payload;
 	if (list->head == NULL && list->tail == NULL) {
 		list->head = node;

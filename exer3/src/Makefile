@@ -1,4 +1,4 @@
-E1 = multi-task-scheduling
+	E1 = multi-task-scheduling
 
 all:
 	@echo "Compiling modules for Exercise 3"

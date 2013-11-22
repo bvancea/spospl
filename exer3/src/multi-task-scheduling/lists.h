@@ -31,7 +31,7 @@ node_t list_head(list_t list);
 void* list_pop_head(list_t list);
 void print_list(list_t list);
 
-#define INIT_LIST() (list_t) malloc(sizeof(list_t));
+#define INIT_LIST() (list_t) malloc(sizeof(struct list));
 
 
 #endif /* LISTS_H_ */

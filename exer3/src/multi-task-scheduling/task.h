@@ -11,11 +11,14 @@
 #include <pthread.h>
 #include "lists.h"
 
+#define QUEUE_SIZE 8 * 1024
 
 typedef void (*function_t)(void *);
 
-typedef enum sched_action { ADD_TASK, YIELD, RETURN_TASK } sched_action_t;
+typedef enum sched_action { IDLE, ADD_TASK, YIELD, RETURN_TASK } sched_action_t;
 typedef enum status { STARTED, COMPLETED } status_t;
+
+typedef enum program_state {PROGRAM_STARTED, PROGRAM_ENDED} program_state_t;
 
 // this will probably be changed a little
 typedef struct context {
@@ -33,12 +36,19 @@ typedef struct context {
 	pthread_mutex_t lock;
 } task_t;
 
+typedef struct queue {
+	task_t* tasks[QUEUE_SIZE];
+	int top;
+	
+	pthread_mutex_t lock;
+} queue_t;
 
 typedef struct scheduler {
 	ucontext_t* context;
 	pthread_mutex_t lock;
 	
 	int top;
+	int id;
 
 	task_t* new_task;
 	sched_action_t action;
@@ -46,12 +56,16 @@ typedef struct scheduler {
 	//TODO cleanup
 	task_t* current_task;
 	/* Tasks ready to execute */
-	volatile list_t ready;
-	/* Tasks waiting on something, blocked tasks.*/
-	list_t waiting;
+	//list_t ready;	
+	queue_t ready;
 
 	pthread_t thread;
 } scheduler_t;
+
+typedef struct parallel_program {
+	program_state_t state;
+	pthread_mutex_t lock;
+} program_t;
 
 /**
  * Initializes the task API.
@@ -99,6 +113,8 @@ int task_sync(task_t** execution_context, int count);
  */
 int task_return();
 
+void task_destroy(task_t* task);
+
 #define RETURN(value, type) task_t* current_task = task_current();			\
 							*((type*)current_task->result) = *value; 		\
 							task_return()
@@ -112,6 +128,7 @@ void task_inc_children_count(task_t* task);
 void task_dec_children_count(task_t* task);
 
 void* thread_init(void* arg);
+void task_end();
 
 void worker_init(int workers);
 void* worker_loop();
@@ -123,6 +140,15 @@ void sched_invoke();
 void sched_wrapper_function(void* c);
 scheduler_t* sched_get();
 
+void sched_handler_add_task(scheduler_t* scheduler);
+void sched_handler_yield(scheduler_t* scheduler);
+void sched_handler_return(scheduler_t* scheduler);
+void sched_handler_try_steal(scheduler_t* scheduler);
 void sched_print_list(list_t list);
 
+int has_program_ended();
+int inside_main();
+
+void start_program();
+void end_program(); 
 #endif /* RTS_API_H_ */

@@ -5,10 +5,11 @@
  *      Author: bogdan
  */
 #include <stdlib.h>
+#include <unistd.h>
 #include "./task.h"
 #include "./lists.h"
 #include "./dbg.h"
-
+#include <sys/resource.h>
 
 #define ALLOCATE_INT(x) x = (int *) malloc(sizeof(int));
 #define ALLOCATE_INT_VALUE(x,v) ALLOCATE_INT(x); \
@@ -16,7 +17,11 @@
 
 void fibo(void* args) {
 	int n = *((int *) args);
-	debug("Executing fibo %d", n);
+	// if (inside_main()) {
+	// 	debug("Executing fibo %d from main.", n);
+	// } else {
+	// 	debug("Executing fibo %d from a worker.", n);
+	// }
 	int* returned;
 	ALLOCATE_INT_VALUE(returned, n);
 
@@ -60,10 +65,14 @@ int fib(int n) {
 
 
 int main(int argc, char **argv) {
-	task_init(2);
-	int n = 23;
+	int n = 10;
+	if (argc > 1) {
+		n = atoi(argv[1]);
+	}
+	task_init(2);	
 	int r = fib(n);
 	printf("Fibo %d is %d\n", n, r);
+	task_end();
 	return 0;
 }
 

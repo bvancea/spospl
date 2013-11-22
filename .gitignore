@@ -11,6 +11,10 @@ Release
 *.eml
 *.iml
 
+#Sublime
+*.sublime-project
+*.sublime-workspace
+
 #Objects created during build
 *.o
 *.d

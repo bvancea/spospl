@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -O2 -Wall -Werror -DNDEBUG
+CFLAGS = -g -O2 -Wall -Werror
 FIB_SOURCES = fibo.c lists.c task.c
 FIB_OBJECTS = fibo.o lists.o
 FIB_BINARY = fibo
@@ -12,16 +12,11 @@ LIBRARIES = -lm -pthread
 
 all:
 	make fibo;
-	make printer;
 
 fibo:
 	$(CC) $(CFLAGS) $(FIB_SOURCES) -o $(FIB_BINARY) $(LIBRARIES)
 	@echo "Compilation succesfull. The binary generated is '$(FIB_BINARY)'.";
-	
-printer:
-	$(CC) $(CFLAGS) $(GRT_SOURCES) -o $(GRT_BINARY) $(LIBRARIES)
-	@echo "Compilation succesfull. The binary generated is '$(GRT_BINARY)'.";
-	
+
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
 	
