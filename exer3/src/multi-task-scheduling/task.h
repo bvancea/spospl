@@ -9,7 +9,6 @@
 #define TASK_H_
 #include <ucontext.h>
 #include <pthread.h>
-#include "lists.h"
 
 #define QUEUE_SIZE 8 * 1024
 
@@ -144,7 +143,6 @@ void sched_handler_yield(scheduler_t* scheduler);
 void sched_handler_return(scheduler_t* scheduler);
 void sched_handler_try_steal(scheduler_t* scheduler);
 void sched_handler_execute(scheduler_t* scheduler);
-void sched_print_list(list_t list);
 
 int has_program_ended();
 int inside_main();

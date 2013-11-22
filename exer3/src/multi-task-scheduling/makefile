@@ -1,12 +1,8 @@
 CC = gcc
 CFLAGS = -g -O2 -Wall -Werror -D_GNU_SOURCE
-FIB_SOURCES = fibo.c lists.c task.c
-FIB_OBJECTS = fibo.o lists.o
+FIB_SOURCES = fibo.c task.c
+FIB_OBJECTS = fibo.o 
 FIB_BINARY = fibo
-
-GRT_SOURCES = printer.c task.c lists.c 
-GRT_OBJECTS = printer.o lists.o
-GRT_BINARY = printer
 
 LIBRARIES = -lm -pthread 
 

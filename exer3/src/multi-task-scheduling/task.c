@@ -14,7 +14,6 @@
 #include <time.h>
 #include <sched.h>
 #include "task.h"
-#include "lists.h"
 #include "dbg.h"
 
 #define STACK_SIZE	64 * 1024
@@ -365,24 +364,6 @@ scheduler_t* sched_get() {
 		scheduler = &schedulers[*id];
 	}
 	return scheduler;
-}
-
-void sched_print_list(list_t list) {
-	node_t current;
-	char message[1024];
-	strcpy(message, "Scheduling queue is: ");
-	for (current = list->head; current != NULL; current = current->next) {
-		if (current->content) {
-			int payload = ((task_t *) current->content)->id;
-			char current_elem[10];
-			sprintf(current_elem, "%d ", payload);
-			strcat(message, current_elem);
-		} else {
-			log_err("Scheduling list contains NULL elements.Exiting...");
-			exit(0);
-		}
-	}
-	debug("%s",message);
 }
 
 /**
