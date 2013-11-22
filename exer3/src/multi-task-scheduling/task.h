@@ -47,7 +47,6 @@ typedef struct scheduler {
 	ucontext_t* context;
 	pthread_mutex_t lock;
 	
-	int top;
 	int id;
 
 	task_t* new_task;
@@ -144,6 +143,7 @@ void sched_handler_add_task(scheduler_t* scheduler);
 void sched_handler_yield(scheduler_t* scheduler);
 void sched_handler_return(scheduler_t* scheduler);
 void sched_handler_try_steal(scheduler_t* scheduler);
+void sched_handler_execute(scheduler_t* scheduler);
 void sched_print_list(list_t list);
 
 int has_program_ended();

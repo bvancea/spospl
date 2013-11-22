@@ -17,41 +17,22 @@
 
 void fibo(void* args) {
 	int n = *((int *) args);
-	// if (inside_main()) {
-	// 	debug("Executing fibo %d from main.", n);
-	// } else {
-	// 	debug("Executing fibo %d from a worker.", n);
-	// }
-	int* returned;
-	ALLOCATE_INT_VALUE(returned, n);
-
+	int returned = n;
 	if (n >= 2) {
-		int *x, *y, *arg_x, *arg_y;
-		ALLOCATE_INT(x);
-		ALLOCATE_INT(y);
-		ALLOCATE_INT_VALUE(arg_x, n-1);
-		ALLOCATE_INT_VALUE(arg_y, n-2);
-
+		int x,y,arg_x = n-1, arg_y = n-2;
 		//create 2 contexts for the child functions
 		task_t* ct[2];
 
 		//execute the child functions in different execution contexts
-		ct[0] = task_spawn((void*) &fibo, arg_x, x);
-		ct[1] = task_spawn((void*) &fibo, arg_y, y);
+		ct[0] = task_spawn((void*) &fibo, &arg_x, &x);
+		ct[1] = task_spawn((void*) &fibo, &arg_y, &y);
 
 		//wait for the child contexts to complete
 		task_sync(ct, 2);
-
-		//return the result
-		*returned = *x + *y;
-
-		free(x);
-		free(y);
-		free(arg_x);
-		free(arg_y);
+		returned = x + y;
 	}
 
-	RETURN(returned, int);
+	RETURN(&returned, int);
 }
 
 int fib(int n) {
@@ -63,14 +44,16 @@ int fib(int n) {
 	return result;
 }
 
-
 int main(int argc, char **argv) {
 	int n = 10;
 	if (argc > 1) {
 		n = atoi(argv[1]);
 	}
-	task_init(2);	
-	int r = fib(n);
+
+	int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+	printf("Detected %d CPU cores.", num_cores);
+	task_init(num_cores);	
+	int r = fib(5);
 	printf("Fibo %d is %d\n", n, r);
 	task_end();
 	return 0;

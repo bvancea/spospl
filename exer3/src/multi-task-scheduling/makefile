@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -O2 -Wall -Werror
+CFLAGS = -g -O2 -Wall -Werror -D_GNU_SOURCE
 FIB_SOURCES = fibo.c lists.c task.c
 FIB_OBJECTS = fibo.o lists.o
 FIB_BINARY = fibo
