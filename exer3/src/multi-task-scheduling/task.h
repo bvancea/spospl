@@ -15,7 +15,7 @@
 typedef void (*function_t)(void *);
 
 typedef enum sched_action { IDLE, ADD_TASK, YIELD, RETURN_TASK } sched_action_t;
-typedef enum status { STARTED, COMPLETED } status_t;
+typedef enum status { STARTED, EXECUTING, COMPLETED } status_t;
 
 typedef enum program_state {PROGRAM_STARTED, PROGRAM_ENDED} program_state_t;
 
@@ -33,6 +33,7 @@ typedef struct context {
 	struct context* parent;
 
 	pthread_mutex_t lock;
+	pthread_mutex_t running_lock;
 } task_t;
 
 typedef struct queue {
@@ -124,6 +125,7 @@ task_t* task_current();
 
 void task_inc_children_count(task_t* task);
 void task_dec_children_count(task_t* task);
+void task_set_status(task_t* task, status_t new_status);
 
 void* thread_init(void* arg);
 void task_end();
@@ -141,8 +143,9 @@ scheduler_t* sched_get();
 void sched_handler_add_task(scheduler_t* scheduler);
 void sched_handler_yield(scheduler_t* scheduler);
 void sched_handler_return(scheduler_t* scheduler);
-void sched_handler_try_steal(scheduler_t* scheduler);
+void sched_handler_try_steal(scheduler_t* scheduler, int steal_attempts);
 void sched_handler_execute(scheduler_t* scheduler);
+void sched_assign_to_core(scheduler_t* scheduler, int cores_number);
 
 int has_program_ended();
 int inside_main();

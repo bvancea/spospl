@@ -16,13 +16,15 @@
 #include "task.h"
 #include "dbg.h"
 
-#define STACK_SIZE	64 * 1024
+#define STACK_SIZE	256 * 1024
 
 #define ALLOCATE_TASK(task)		task = (task_t*) malloc(sizeof(task_t));					\
 								task->context = (ucontext_t*) malloc(sizeof(ucontext_t)); 	\
 								ALLOCATE_STACK_UC(task->context);							\
-								task->children = 0;															\
-								task->id = ++task_counter
+								task->children = 0;											\
+								pthread_mutex_lock(&program.lock);							\
+								task->id = ++task_counter;                                   \
+								pthread_mutex_unlock(&program.lock)							
 #define ALLOCATE_FIRST(task )   task = (task_t*) malloc(sizeof(task_t));					\
 								task->context = (ucontext_t*) malloc(sizeof(ucontext_t)); 	\
 								ALLOCATE_STACK_UC(task->context);							\
@@ -43,11 +45,27 @@
 pthread_cond_t wake_up_threads = PTHREAD_COND_INITIALIZER, wake_up_main = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t wake_up_threads_lock = PTHREAD_MUTEX_INITIALIZER, wake_up_main_lock = PTHREAD_MUTEX_INITIALIZER;
 
-ucontext_t go_home;
+static ucontext_t go_home;
+static unsigned int main_id = -1;
 
 void queue_push(queue_t* queue, task_t* task) {
 	pthread_mutex_lock(&queue->lock);
 	queue->tasks[++queue->top] = task;
+	pthread_mutex_unlock(&queue->lock);
+}
+
+void queue_push_if_not_contained(queue_t* queue, task_t* task) {
+	pthread_mutex_lock(&queue->lock);
+	int size = queue->top;
+	int contained = 0;
+	while (size > 0) {
+		if ( queue->tasks[size--]->id == task->id) {
+			contained = 1;
+		}
+	}
+	if (!contained) {
+		queue->tasks[++queue->top] = task;	
+	}
 	pthread_mutex_unlock(&queue->lock);
 }
 
@@ -101,13 +119,13 @@ void queue_free(queue_t* queue) {
 	pthread_mutex_destroy(&queue->lock);
 }
 
-scheduler_t* schedulers;
-int schedulers_nr;
-static int task_counter = 1;
+static scheduler_t* schedulers;
+static int schedulers_nr;
+static volatile int task_counter = 1;
 
-pthread_key_t scheduler_key;
+static pthread_key_t scheduler_key;
 pthread_attr_t attr;
-program_t program;
+static program_t program;
 
 void* thread_init(void* arg) {
 
@@ -115,6 +133,7 @@ void* thread_init(void* arg) {
 	if (local_scheduler == NULL) {
 		debug("Local scheduler seems NULL");
 	}
+	debug("Called in pthread: %d", (unsigned int) pthread_self());
 	pthread_setspecific(scheduler_key, (void*) &local_scheduler->id);
 
 	sched_execute_action(NULL);
@@ -149,7 +168,8 @@ void sched_init(int workers) {
 		getcontext(schedulers[i].context);
 		makecontext(schedulers[i].context, (void (*) (void)) sched_execute_action, 0);		
 	}	
-
+	int main_id = -1;
+	pthread_setspecific(scheduler_key,(void*) &main_id);
 	for (i = 0; i < workers; ++i) {
 		pthread_create(&schedulers[i].thread, NULL, thread_init, (void*) &schedulers[i]);
 	}
@@ -158,11 +178,22 @@ void sched_init(int workers) {
 
 	if (!inside_main()) {		
 		scheduler_t* scheduler = sched_get(); 
+		if (!scheduler) {
+			log_err("NO SCHEDULER");
+		}
 		debug("%d - Jumping to scheduler context", scheduler->id);		
 		setcontext(scheduler->context);
 	} else {
 		debug("Only main here");
 	}
+}
+
+void sched_assign_to_core(scheduler_t* scheduler, int cores_number) {
+	int cpu_core = scheduler->id % cores_number;
+	cpu_set_t cpuset;
+   	CPU_ZERO(&cpuset);
+   	CPU_SET(cpu_core, &cpuset);
+   	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 }
 
 /**
@@ -176,27 +207,13 @@ void* sched_execute_action(void *arguments) {
 		exit(-1);
 	}
 	scheduler_t* scheduler = sched_get();	
-	int cpu_core = scheduler->id % sysconf(_SC_NPROCESSORS_ONLN);
-	cpu_set_t cpuset;
-   	CPU_ZERO(&cpuset);
-   	CPU_SET(cpu_core, &cpuset);
-   	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+	//sched_assign_to_core(scheduler, sysconf(_SC_NPROCESSORS_ONLN));
 	getcontext(scheduler->context);
 		
-	if (sched_get()->context != scheduler->context) {
-		debug("%d - In the wrong stack %d", sched_get()->id, scheduler->id);
-		setcontext(sched_get()->context);
-	} else {
-		debug("%d - In the right stack ", scheduler->id);
-	}
-
-	pthread_mutex_lock(&scheduler->lock);
-
 	if (has_program_ended()) {
 		free(scheduler->context->uc_stack.ss_sp);
 		free(scheduler->context);
 		debug("%d - Program ended, attempting to exit",scheduler->id);
-		pthread_mutex_unlock(&scheduler->lock);
 		pthread_exit(0);
 	}
 
@@ -206,27 +223,27 @@ void* sched_execute_action(void *arguments) {
 		sched_handler_yield(scheduler);
 	} else if (scheduler->action == RETURN_TASK) {
 		sched_handler_return(scheduler);				
-	} else if (scheduler->action == IDLE) {
-		
-		sched_handler_try_steal(scheduler);	
-		//failed to steal
-		// if (scheduler->action == IDLE) {
-		// 	// pthread_mutex_unlock(&scheduler->lock);
-		// 	// pthread_mutex_lock(&wake_up_threads_lock);
-		// 	// pthread_cond_wait(&wake_up_threads, &wake_up_threads_lock);
-		// 	// pthread_mutex_unlock(&wake_up_threads_lock);
-
-		// 	// pthread_mutex_lock(&scheduler->lock);
-		// }
-	} 
-	ucontext_t* next_context;
-	if (scheduler->current_task != NULL) {
-		debug("%d - Attempting to execute task %d", scheduler->id, scheduler->current_task->id);
-		next_context = scheduler->current_task->context;
 	} else {
-		next_context = scheduler->context;
-	}
-	pthread_mutex_unlock(&scheduler->lock);
+		scheduler->current_task = NULL;
+		task_t* new_task = (task_t*) queue_pop(&scheduler->ready);
+		if (new_task) {
+			scheduler->current_task = new_task;
+		} else {
+			sched_handler_try_steal(scheduler, 3);		
+		}				
+	} 
+	ucontext_t* next_context = scheduler->context;
+
+	if (scheduler->current_task) {
+		pthread_mutex_lock(&scheduler->current_task->running_lock);
+		debug("%d - Attempting to execute task %d", scheduler->id, scheduler->current_task->id);		
+		if (scheduler->current_task->status != COMPLETED) {
+			next_context = scheduler->current_task->context;
+		} else {
+			pthread_mutex_unlock(&scheduler->current_task->running_lock);	
+		}
+	} 
+	
 	setcontext(next_context);
 
 	return (void*) 0xbeef;
@@ -235,9 +252,8 @@ void* sched_execute_action(void *arguments) {
 void sched_handler_add_task(scheduler_t* scheduler) {
 	if (scheduler->current_task != NULL) {
 		debug("%d - New task %d to be executed, %d added to queue...",scheduler->id, scheduler->new_task->id, scheduler->current_task->id);
-		if (!queue_contains(&scheduler->ready, scheduler->current_task)) {
-			queue_push(&scheduler->ready, scheduler->current_task);
-		}
+		pthread_mutex_unlock(&scheduler->current_task->running_lock);
+		queue_push_if_not_contained(&scheduler->ready, scheduler->current_task);
 	} else {
 		debug("%d - New task %d to be executed, called from main.", scheduler->id, scheduler->new_task->id);
 	}
@@ -248,6 +264,9 @@ void sched_handler_add_task(scheduler_t* scheduler) {
 }
 
 void sched_handler_yield(scheduler_t* scheduler) {
+	
+	if (scheduler->current_task) pthread_mutex_unlock(&scheduler->current_task->running_lock);
+	
 	task_t* new_task = (task_t*) queue_pop(&scheduler->ready);
 	if (new_task != NULL && new_task->context != NULL) {		
 		scheduler->current_task = new_task;			
@@ -258,73 +277,69 @@ void sched_handler_yield(scheduler_t* scheduler) {
 }
 
 void sched_handler_return(scheduler_t* scheduler) {
-	//pthread_mutex_lock(&scheduler->lock);
 	debug("%d - Task %d returned %d", scheduler->id, scheduler->current_task->id, *((int*) (scheduler->current_task->result)));
+	
 	scheduler->current_task->status = COMPLETED;
+
+	pthread_mutex_unlock(&scheduler->current_task->running_lock);
+
 	if (scheduler->current_task->parent) {
 		task_dec_children_count(scheduler->current_task->parent);
 		if (scheduler->current_task->parent->children == 0 && scheduler->current_task->parent->status != COMPLETED) {
 			debug("%d - Task %d added back to queue.",scheduler->id, scheduler->current_task->parent->id);
-			if (!queue_contains(&scheduler->ready, scheduler->current_task)) {
-				queue_push(&scheduler->ready, scheduler->current_task->parent);
-			}
+			queue_push_if_not_contained(&scheduler->ready, scheduler->current_task->parent);
 		}
 	} else {
+		//wake up the main thread
+		debug("Waking up main.");
 		pthread_mutex_lock(&wake_up_main_lock);
 		pthread_cond_signal(&wake_up_main);
 		pthread_mutex_unlock(&wake_up_main_lock);
 	}
 
-	scheduler->action = YIELD;
+	scheduler->action = IDLE;
 	scheduler->current_task = NULL;
 }
 
-void sched_handler_try_steal(scheduler_t* scheduler) {
+void sched_handler_try_steal(scheduler_t* scheduler, int steal_attempts) {
 	if (schedulers_nr > 1) {
 		unsigned int seed = 42;
 		srand(time(NULL));
-		long victim_id;
-	
-		do {
-			victim_id = rand_r(&seed) % schedulers_nr;
-		} while (victim_id == scheduler->id);
+		long victim_id = 0;
+		int attempt = 0;
+		task_t* stolen = NULL;
 
-		scheduler_t* victim = &schedulers[victim_id];
-		task_t* stolen = queue_pop(&victim->ready);
-		debug("%d - Queue of the victim", scheduler->id);
-		print_queue(&victim->ready);
-		debug("%d - My queue", scheduler->id);
-		print_queue(&scheduler->ready);
-		if (stolen ) {
+		while (stolen == NULL && attempt < steal_attempts) {
+			do {
+				victim_id = rand_r(&seed) % schedulers_nr;
+			} while (victim_id == scheduler->id);
+
+			scheduler_t* victim = &schedulers[victim_id];
+			stolen = queue_pop(&victim->ready);
+			if (stolen) {
+				debug("%d - yay", scheduler->id);
+			}
+			attempt+=1;
+		}
+		if (stolen) {
 			debug("%d - Succesfully stolen task %d from victim %d", scheduler->id, stolen->id, (int) victim_id);
-			//stolen->context->uc_link = scheduler->context;
 			scheduler->action = YIELD;
 			scheduler->current_task = stolen;
 		} else {
-			debug("%d - Failed to steal from victim %d", scheduler->id, (int) victim_id);
+			//debug("%d - Failed to steal from victim %d", scheduler->id, (int) victim_id);
 		}		
 	}
 }
 
 void sched_add_task(task_t* new_task) {
 	scheduler_t* scheduler = sched_get();
-
-retry:
-	pthread_mutex_lock(&scheduler->lock);
-	if (scheduler->new_task != NULL) {
-		pthread_mutex_unlock(&scheduler->lock);
-		goto retry;
-	}
-	scheduler->new_task = new_task;
-	scheduler->action = ADD_TASK;
-	// pthread_mutex_lock(&wake_up_threads_lock);
-	// debug("Main broadcasting to %d", scheduler->id);
-	// pthread_cond_broadcast(&wake_up_threads);
-	// pthread_mutex_unlock(&wake_up_threads_lock);
-
-	pthread_mutex_unlock(&scheduler->lock);	
-	if (!inside_main()) {
-		sched_invoke();	
+	if (inside_main()) {
+		debug("Adding a task from main");
+		queue_push(&scheduler->ready,new_task);
+	} else {
+		scheduler->new_task = new_task;
+		scheduler->action = ADD_TASK;	
+		sched_invoke();
 	}	
 }
 
@@ -334,8 +349,11 @@ void sched_yield_current() {
 }
 
 void sched_invoke() {
-	scheduler_t *scheduler = sched_get();
-	if (scheduler->current_task) {
+	scheduler_t* scheduler = sched_get();
+	if (!scheduler) {
+		log_err("NO SCHEDULER");
+	}
+	if (scheduler->current_task != NULL) {
 		swapcontext(scheduler->current_task->context, scheduler->context);
 	} else {
 		setcontext(scheduler->context);
@@ -354,7 +372,7 @@ void sched_wrapper_function(void* c) {
 scheduler_t* sched_get() {
 	int* id = (int *) pthread_getspecific(scheduler_key);
 	scheduler_t* scheduler;
-	if (id == NULL) {
+	if (*id == -1 ) {
 		debug("Returning default scheduler.");
 		unsigned int seed = 1;
 		srand(time(NULL));
@@ -371,6 +389,7 @@ scheduler_t* sched_get() {
  */
 void task_init(int workers) {
 	schedulers_nr = workers;
+	main_id = (unsigned int) pthread_self();
 	start_program();
 	sched_init(workers);
 }
@@ -379,7 +398,7 @@ void task_init(int workers) {
  * Perform cleanup.
  */
 void task_deinit(void * arg) {
-	debug("Thread exiting...");		
+	debug("%d - Thread exiting...", (unsigned int) pthread_self());		
 }
 
 void task_end() {
@@ -411,6 +430,7 @@ task_t* task_spawn(void* fct_ptr, void* arguments, void *return_val) {
 	task_t* current_task = task_current();
 	ALLOCATE_TASK(new_task);
 	pthread_mutex_init(&new_task->lock, NULL);
+	pthread_mutex_init(&new_task->running_lock, NULL);
 	if (inside_main()) {
 		debug("Spawn called from main.");
 	} else {
@@ -431,15 +451,21 @@ task_t* task_spawn(void* fct_ptr, void* arguments, void *return_val) {
 	}		
 	getcontext(new_task->context);
 	if (new_task->status == STARTED) {
-		makecontext(new_task->context, (void (*) (void)) sched_wrapper_function, 0);
+		makecontext(new_task->context, (void (*) (void)) sched_wrapper_function, 0);		
 		sched_add_task(new_task);
 	}
 	return new_task;
 }
 
 int task_return() {	
-	sched_get()->action = RETURN_TASK;
-	sched_invoke();
+	// if (!inside_main()) {
+		scheduler_t* scheduler = sched_get();
+		scheduler->action = RETURN_TASK;
+	setcontext(scheduler->context);
+		//sched_invoke();
+	// } else {
+	// 	debug("Returning from main");
+	// }
 	return 0;
 }
 
@@ -468,11 +494,13 @@ task_t* task_current() {
 }
 
 int has_program_ended() {
-	if (program.state == PROGRAM_ENDED) {
-		return 1;
-	} else {
-		return 0;
+	pthread_mutex_lock(&program.lock);
+	int state = 0;
+	if (PROGRAM_ENDED == program.state ) {
+		state = 1;
 	}
+	pthread_mutex_unlock(&program.lock);
+	return state;
 }
 
 void start_program() {
@@ -488,11 +516,7 @@ void end_program() {
 }
 
 int inside_main() {
-	if (pthread_getspecific(scheduler_key) == NULL) {
-		return 1;
-	} else {
-		return 0;
-	}
+	return ((unsigned int) pthread_self() == main_id) ? 1 : 0;
 }
 
 int task_sync(task_t** execution_context, int count) {
@@ -505,18 +529,21 @@ int task_sync(task_t** execution_context, int count) {
 		for (i = 0; i < count; i++) {
 			if (execution_context[i]->status != COMPLETED) {
 			//if (execution_context[i]->status != COMPLETED || execution_context[i]->result == NULL || *((int*)execution_context[i]->result) == -1) {
-				someone_not_done = 1;
-				if (!inside_main()) {
-					debug("%d - Yielding...", sched_get()->id);
-					sched_yield_current();
-				} else {
-					pthread_mutex_lock(&wake_up_main_lock);
-					pthread_cond_wait(&wake_up_main, &wake_up_main_lock);
-					pthread_mutex_unlock(&wake_up_main_lock);
-				}
+				someone_not_done = 1;				
+			}
+		}		
+		if (someone_not_done) {
+			if (!inside_main()) {
+				debug("%d - Yielding...", sched_get()->id);
+				sched_yield_current();
+			} else {
+				debug("Main waiting");
+				pthread_mutex_lock(&wake_up_main_lock);
+				pthread_cond_wait(&wake_up_main, &wake_up_main_lock);
+				pthread_mutex_unlock(&wake_up_main_lock);
+				debug("Main woken up");
 			}
 		}
-		
 	}
 
 	//if control is here, child tasks have finished
@@ -528,7 +555,7 @@ int task_sync(task_t** execution_context, int count) {
 	}
 
 	if (inside_main()) {
-		debug("Going outside of sync in main");
+		debug("Going outside of sync in main %d", (unsigned int ) pthread_self());
 	} else {
 		debug("Going outside of sync in task %d", task_current()->id);
 	}
@@ -538,6 +565,8 @@ int task_sync(task_t** execution_context, int count) {
 
 void task_destroy(task_t* task) {
 	if (task) {
+		pthread_mutex_destroy(&task->lock);
+		pthread_mutex_destroy(&task->running_lock);
 		SAFE_FREE(task->context->uc_stack.ss_sp);
 		SAFE_FREE(task->context);
 		SAFE_FREE(task);	
@@ -548,6 +577,11 @@ int task_first_child(task_t* task) {
 	return -1;
 }
 
+void task_set_status(task_t* task, status_t new_status) {	
+	pthread_mutex_lock(&task->lock);
+	task->status = new_status;
+	pthread_mutex_unlock(&task->lock);
+}
 /*
  *	Main loop of the worker threads. 
  *	

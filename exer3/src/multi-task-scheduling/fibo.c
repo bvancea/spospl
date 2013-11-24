@@ -11,7 +11,7 @@
 #include <sys/resource.h>
 
 #define ALLOCATE_INT(x) x = (int *) malloc(sizeof(int));
-#define ALLOCATE_INT_VALUE(x,v) ALLOCATE_INT(x); \
+#define ALLOCATE_INT_VALUE(x,v) ALLOCATE_INT(x)E_INT(x); \
 								*x = v
 
 void fibo(void* args) {
@@ -36,10 +36,11 @@ void fibo(void* args) {
 
 int fib(int n) {
 	int result;
-
+	//fibo(&n);
 	task_t* t[1];
 	t[0] = task_spawn((void*) fibo, &n, &result);
 	task_sync(t,1);
+	debug("RESULT IS: %d", result);
 	return result;
 }
 
@@ -52,7 +53,7 @@ int main(int argc, char **argv) {
 	int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
 	printf("Detected %d CPU cores.", num_cores);
 	task_init(num_cores);	
-	int r = fib(5);
+	int r = fib(n);
 	printf("Fibo %d is %d\n", n, r);
 	task_end();
 	return 0;
