@@ -21,3 +21,4 @@ Release
 
 #Binaries
 *.fuse*
+*fibo*
