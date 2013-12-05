@@ -15,7 +15,7 @@
 typedef struct element {
 	void* content;
 	struct element *next;
-	struct element *prev;
+	struct element *prev;	
 } node;
 
 typedef node* node_t;
@@ -24,6 +24,7 @@ typedef struct list {
 	node_t head;
 	node_t tail;	
 	pthread_mutex_t lock;
+	int size;
 }* list_t;
 
 list_t list_push_back(list_t list, void* payload);
@@ -34,8 +35,6 @@ list_t list_safe_push_back(list_t list, void* payload);
 node_t list_safe_head(list_t list);
 void* list_safe_pop_head(list_t list);
 void* list_safe_pop_tail(list_t list);
-
-
 void print_list(list_t list);
 
 

@@ -6,6 +6,7 @@
  */
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include "./task.h"
 #include "./dbg.h"
 #include <sys/resource.h>
@@ -13,6 +14,11 @@
 #define ALLOCATE_INT(x) x = (int *) malloc(sizeof(int));
 #define ALLOCATE_INT_VALUE(x,v) ALLOCATE_INT(x)E_INT(x); \
 								*x = v
+
+double timeval_diff(struct timeval begin, struct timeval end) {
+	double elapsed = (end.tv_sec - begin.tv_sec) + ((end.tv_usec - begin.tv_usec)/1000000.0);
+	return elapsed;
+}
 
 void fibo(void* args) {
 	int n = *((int *) args);
@@ -35,22 +41,29 @@ void fibo(void* args) {
 }
 
 int fib(int n) {
+	struct timeval start, end;
+	gettimeofday(&start, NULL);
 	int result;
 	//fibo(&n);
 	task_t* t[1];
 	t[0] = task_spawn((void*) fibo, &n, &result);
 	task_sync(t,1);
-	debug("RESULT IS: %d", result);
+	gettimeofday(&end, NULL);
+
+	double execution_time = 1000 * 1000 * timeval_diff(start, end);
+	printf("Total execution time: %f\n", execution_time);
 	return result;
 }
 
 int main(int argc, char **argv) {
 	int n = 10;
+	int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+
 	if (argc > 1) {
 		n = atoi(argv[1]);
+		num_cores = atoi(argv[2]);
 	}
-
-	int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+	
 	printf("Detected %d CPU cores.", num_cores);
 	task_init(num_cores);	
 	int r = fib(n);

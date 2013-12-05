@@ -2,6 +2,7 @@
 #define ALLOC_H_
 
 #include "task.h"
+#include "list.h"
 
 #define ALLOCATE_TASK(task, counter, lock)		task = (task_t*) malloc(sizeof(task_t));    \
 								task->context = (ucontext_t*) malloc(sizeof(ucontext_t)); 	\
@@ -28,8 +29,12 @@
 								}  					\
 								pointer = NULL
 
-
+void task_allocator_init(int nr_threads, int global_bound, int local_bound);
 task_t* task_malloc();
-void task_free(task_t* );
+void task_free(task_t* task);
 task_t* task_malloc_new();
+void list_free(list_t list);
+void task_move_to_gloabl_list(list_t from_list, int number);
+void task_free_from_global_list(int number);
+void task_allocator_deinit();
 #endif /* ALLOC_H_ */

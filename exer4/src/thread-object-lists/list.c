@@ -10,6 +10,7 @@
 #include "list.h"
 #include "dbg.h"
 
+
 node_t list_head(list_t list) {
 	node_t returned;
 
@@ -38,6 +39,7 @@ void* list_pop_tail(list_t list) {
 		}
 		free(deleted);
 	}
+	list->size--;
 	return returned;
 }
 
@@ -59,6 +61,7 @@ void* list_pop_head(list_t list) {
 		}
 		free(deleted);
 	}
+	list->size--;
 	return returned;
 }
 
@@ -74,6 +77,7 @@ list_t list_push_back(list_t list, void* payload) {
 		node->next = NULL;							//nowhere to go next
 		list->tail = node;							//we have a new tail
 	}
+	list->size++;
 	return list;
 }
 
