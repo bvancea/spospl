@@ -16,7 +16,7 @@ fibo:
 	@echo "Compilation succesfull. The binary generated is '$(FIB_BINARY)'.";
 
 fibo_tcmalloc:
-	$(CC) $(CFLAGS) $(FIB_SOURCES) -o fibo_tcmalloc $(LIBRARIES) -ltcmalloc 
+	$(CC) $(CFLAGS) -DUSE_MALLOC $(FIB_SOURCES) -o fibo_tcmalloc $(LIBRARIES) -ltcmalloc 
 	@echo "Compilation succesfull. The binary generated is fibo_tcmalloc.";
 
 fibo_malloc:
@@ -27,5 +27,5 @@ fibo_malloc:
 	$(CC) $(CFLAGS) -c $<
 	
 clean:
-	@rm -f $(GRT_BINARY) $(GRT_OBJECTS) $(FIB_BINARY) $(FIB_OBJECTS) %.o
+	@rm -f $(FIB_BINARY) fibo_malloc fibo_tcmalloc %.o
 	
